@@ -7,13 +7,16 @@ st.set_page_config(page_title="全國土地資產智慧分析平台", page_icon=
 # 自訂 CSS 樣式讓介面充滿機構感與科技感
 st.markdown("""
 <style>
-/* 強制所有文字在任何模式下都是深藍色 */
-html, body, [class*="css"], p, h1, h2, h3, h4, h5, h6, li, span, b, strong { color: #2C3E50 !important; }
-.main-title { color: #2C3E50 !important; font-size: 32px; font-weight: bold; margin-bottom: 5px; }
-.sub-title { color: #7F8C8D !important; font-size: 16px; margin-bottom: 25px; }
+/* 移除強制全域深藍色的設定，讓 Streamlit 自動適配深淺色模式 */
+.main-title { font-size: 32px; font-weight: bold; margin-bottom: 5px; }
+.sub-title { font-size: 16px; margin-bottom: 25px; color: #7F8C8D; }
+/* 在卡片這種有特定底色的區塊，我們才強制文字顏色，確保對比度 */
 .card { background-color: #F8F9FA !important; padding: 20px; border-radius: 10px; border-left: 5px solid #2ECC71; margin-bottom: 20px; color: #2C3E50 !important; }
+.card h3, .card h4, .card p, .card b, .card li { color: #2C3E50 !important; }
 .alert-card { background-color: #FFF9E6 !important; padding: 20px; border-radius: 10px; border-left: 5px solid #F39C12; margin-bottom: 20px; color: #2C3E50 !important; }
+.alert-card h3, .alert-card p, .alert-card b { color: #2C3E50 !important; }
 .danger-card { background-color: #FDEDEC !important; padding: 20px; border-radius: 10px; border-left: 5px solid #E74C3C; margin-bottom: 20px; color: #2C3E50 !important; }
+.danger-card h3, .danger-card p, .danger-card b { color: #2C3E50 !important; }
 .pay-wall { background-color: #EBEDEF !important; padding: 25px; border-radius: 10px; border: 1px solid #AEB6BF; margin: 20px 0; color: #2C3E50 !important; text-align: center; }
 </style>
 """, unsafe_allow_html=True)
@@ -74,18 +77,14 @@ if st.session_state.get('analyzed', False):
             st.warning("🔒 核心法規限制與土地處分策略已被鎖定")
             
             st.markdown("""
-            <div style="color: #2C3E50 !important;">
-            <h3 style="color: #2C3E50 !important;">💡 您的土地符合開發行情，但謄本與產權中隱藏了關鍵地雷！</h3>
-            <p style="color: #2C3E50 !important;">許多持分地主因看不懂法律術語、不熟處分程序而錯失變現良機，甚至誤踩法令盲區引發官司。支付 <b>NT$ 150 元</b> 立即解鎖 AI 開發專家的深度白話解析：</p>
-            <ol style="color: #2C3E50 !important;">
-                <li><b>法規障礙：</b> 為什麼名為「商業、住宅區」，現況卻連一間廁所都不能蓋？</li>
-                <li><b>隱藏地雷：</b> 本案是否會被劃為「道路用地」？未來我的地會被變馬路嗎？</li>
-                <li><b>多數決破局：</b> 有人想賣、有人不想賣？持分 1/18 該如何合法強行過戶變現？</li>
-                <li><b>優購權陷阱：</b> 地上有別人的房子（地上物）？小心弄錯優先購買權順序，賣地反而被告！</li>
-                <li><b>共有人擺爛：</b> 賣地後其他親戚裝死不收錢、拒接電話？如何利用「法院提存」合法免除後續爭議？</li>
-            </ol>
-            </div>
-            """, unsafe_allow_html=True)
+            ### 💡 您的土地符合開發行情，但謄本與產權中隱藏了關鍵地雷！
+            許多持分地主因看不懂法律術語、不熟處分程序而錯失變現良機，甚至誤踩法令盲區引發官司。支付 **NT$ 150 元** 立即解鎖 AI 開發專家的深度白話解析：
+            1. **法規障礙：** 為什麼名為「商業、住宅區」，現況卻連一間廁所都不能蓋？
+            2. **隱藏地雷：** 本案是否會被劃為「道路用地」？未來我的地會被變馬路嗎？
+            3. **多數決破局：** 有人想賣、有人不想賣？持分 1/18 該如何合法強行過戶變現？
+            4. **優購權陷阱：** 地上有別人的房子（地上物）？小心弄錯優先購買權順序，賣地反而被告！
+            5. **共有人擺爛：** 賣地後其他親戚裝死不收錢、拒接電話？如何利用「法院提存」合法免除後續爭議？
+            """)
             
             st.markdown("""
             <div class="pay-wall">
@@ -135,7 +134,7 @@ if st.session_state.get('analyzed', False):
             <p><b>實務風險：</b> 持分地若隨意轉售，未依法通知其他權利人，買賣將面臨撤銷或損害賠償官司。</p>
             <p><b>🧠 AI 白話翻譯：</b><br>
             當持分地有人要賣時，法律為了產權單純化，規定了極度嚴格的<b>「優先購買權」</b>。如果這塊持分地上有別人的房子（地上物），出賣時的優先順序是：<b>地上權人 ＞ 典權人 ＞ 租地建屋的承租人 ＞ 其他共有人</b>。<br>
-            如果您在賣地前沒有依法發出存證信函通知這些順序在前的權利人，或者搞錯通知順序，不僅地政事務所會拒絕辦理過戶，您還可能面臨嚴重的法律損害賠償！這一步必須由專業土開團隊精準把關。</p>
+            如果您在賣地前沒有依法發出存證信函通知這些順序在前的權利人，或者搞錯通知順序，不僅地政事務所會拒絕辦理過戶，您還可能面 শারীরিক嚴重的法律損害賠償！這一步必須由專業土開團隊精準把關。</p>
             </div>
 
             <div class="card">
