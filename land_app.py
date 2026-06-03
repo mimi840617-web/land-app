@@ -16,9 +16,6 @@ TAIWAN_REGIONS = {
 
 @st.cache_data(ttl=3600) 
 def fetch_national_land_data(city, district, section, zoning_type):
-    """
-    商業級大數據過濾器：加入去頭去尾與使用分區對齊
-    """
     city_code_map = {"台北市": "A", "新北市": "F", "桃園市": "H", "台中市": "B", "台南市": "D", "高雄市": "E"}
     city_code = city_code_map.get(city)
     if not city_code:
@@ -31,45 +28,57 @@ def fetch_national_land_data(city, district, section, zoning_type):
         response.raise_for_status()
         data = response.json()
         df = pd.DataFrame(data)
-        df = df[df['鄉鎮市區'] != 'The villages and towns urban district'] 
         
-        # 1. 第一層過濾：該區的純土地交易
-        df = df[df['交易標的'] == '土地']
-        df = df[df['鄉鎮市區'] == district]
+        # 移除可能導致問題的第一行英文標題 (如果存在)
+        if '鄉鎮市區' in df.columns:
+            df = df[df['鄉鎮市區'] != 'The villages and towns urban district'] 
+        elif 'The villages and towns urban district' in df.values:
+             # 如果連中文欄位名都沒有，可能是整個結構改變了
+             raise ValueError("API 資料結構異常，無法識別鄉鎮市區欄位")
+
+        # 尋找目標欄位的彈性方法
+        target_type_col = next((col for col in df.columns if '交易標的' in col), None)
+        district_col = next((col for col in df.columns if '鄉鎮市區' in col), None)
+        address_col = next((col for col in df.columns if '土地區段位置' in col or '門牌' in col), None)
+        total_price_col = next((col for col in df.columns if '總價元' in col), None)
+        area_col = next((col for col in df.columns if '土地移轉總面積' in col), None)
+        zoning_col_1 = next((col for col in df.columns if '非都市土地使用分區' in col), None)
+        zoning_col_2 = next((col for col in df.columns if '非都市土地使用編定' in col), None)
+
+        if not all([target_type_col, district_col, total_price_col, area_col]):
+             raise ValueError(f"API 回傳資料缺少必要欄位。找到的欄位: {df.columns.tolist()}")
+
+        df = df[df[target_type_col] == '土地']
+        df = df[df[district_col] == district]
         
-        # 記錄初步找到的筆數
         initial_count = len(df)
         
-        if section:
+        if section and address_col:
             search_keyword = section[:3]
-            df = df[df['土地區段位置建物區段門牌'].str.contains(search_keyword, na=False)]
+            df = df[df[address_col].str.contains(search_keyword, na=False)]
             
         if df.empty:
             raise ValueError("查無近期純土地交易")
             
-        # 轉換數值格式
-        df['總價元'] = pd.to_numeric(df['總價元'], errors='coerce')
-        df['坪數'] = pd.to_numeric(df['土地移轉總面積平方公尺'], errors='coerce') * 0.3025
+        df['總價'] = pd.to_numeric(df[total_price_col], errors='coerce')
+        df['坪數'] = pd.to_numeric(df[area_col], errors='coerce') * 0.3025
         
-        # 2. 面積防呆過濾：剔除小於 5 坪的極端畸零地
         df = df[df['坪數'] >= 5]
         
-        # 3. 使用分區對齊：如果使用者選了建地，我們就不要抓農地或道路
-        # 實務上政府的都市土地使用分區寫得很雜，我們用寬鬆關鍵字比對
-        if "住宅" in zoning_type or "商業" in zoning_type:
-            # 排除非都市土地與特定農業區，盡量找都市土地
-            df = df[~df['非都市土地使用分區'].str.contains("農業", na=False, regex=False)]
+        # 確保在進行分區對齊前，這些欄位確實存在
+        if ("住宅" in zoning_type or "商業" in zoning_type) and zoning_col_1:
+            df = df[~df[zoning_col_1].str.contains("農業", na=False, regex=False)]
         elif "農業" in zoning_type:
-            df = df[df['非都市土地使用編定'].str.contains("農", na=False, regex=False) | df['非都市土地使用分區'].str.contains("農", na=False, regex=False)]
+             if zoning_col_1 and zoning_col_2:
+                df = df[df[zoning_col_2].str.contains("農", na=False, regex=False) | df[zoning_col_1].str.contains("農", na=False, regex=False)]
+             elif zoning_col_1:
+                df = df[df[zoning_col_1].str.contains("農", na=False, regex=False)]
             
-        # 如果因為分區對齊導致沒資料，就退回不對齊的狀態 (避免報錯)
         if df.empty:
-            raise ValueError("分區對齊後查無資料，啟動備援計算")
+            raise ValueError("分區對齊後查無資料")
 
-        df['每坪單價'] = df['總價元'] / df['坪數']
+        df['每坪單價'] = df['總價'] / df['坪數']
         
-        # 4. 去頭去尾法 (剔除最高 10% 與最低 10% 的離群值)
-        # 只有當資料筆數大於 5 筆時，做這件事才有意義
         outlier_count = 0
         if len(df) > 5:
             q_low = df['每坪單價'].quantile(0.10)
@@ -78,7 +87,6 @@ def fetch_national_land_data(city, district, section, zoning_type):
             outlier_count = len(df) - len(df_filtered)
             df = df_filtered
         
-        # 5. 計算最終精準行情
         avg_price = df['每坪單價'].mean() / 10000
         min_price = df['每坪單價'].min() / 10000
         max_price = df['每坪單價'].max() / 10000
@@ -94,7 +102,7 @@ def fetch_national_land_data(city, district, section, zoning_type):
             }
         }
     except Exception as e:
-        # 備援模式
+        # 當發生 KeyError 或 ValueError 時，退回到備援模式
         base_price = 25.76 if city == "台北市" else (18.5 if city == "新北市" else (15.2 if city == "桃園市" else 10.5))
         return {
             "status": "success",
