@@ -1,13 +1,21 @@
 import streamlit as st
 import time
 
-# 設定網頁分頁標籤與圖示 (改用新聞/圖表圖示)
+# 設定網頁分頁標籤與圖示 
 st.set_page_config(page_title="全國土地資產智慧分析平台", page_icon="📈", layout="wide")
 
-# 📰 財經新聞雜誌風 CSS
+# 📰 財經新聞雜誌風 + 強制白底 CSS
 st.markdown("""
 <style>
-/* 移除強制全域深藍色的設定 */
+/* 🌟 強制整個網站變成白底/淺灰底，無視手機的深色模式 🌟 */
+[data-testid="stAppViewContainer"] { background-color: #F8F9FA !important; }
+[data-testid="stHeader"] { background-color: #F8F9FA !important; }
+[data-testid="stSidebar"] { background-color: #FFFFFF !important; }
+
+/* 強制全域文字為深黑色，避免深色模式下字體變形 */
+.stMarkdown p, .stMarkdown span, .stMarkdown li, label, div { color: #222222 !important; }
+
+/* 財訊經典紅標題 */
 .main-title { 
     color: #CC0000 !important; 
     font-size: 36px; 
@@ -20,7 +28,7 @@ st.markdown("""
 .sub-title { 
     font-size: 18px; 
     margin-bottom: 25px; 
-    color: #111111; 
+    color: #111111 !important; 
     font-weight: bold;
     line-height: 1.6; 
 }
