@@ -1,10 +1,9 @@
 import streamlit as st
 import time
 
-# 設定網頁分頁標籤與圖示 
-st.set_page_config(page_title="全國土地資產智慧分析平台", page_icon="📈", layout="wide")
+st.set_page_config(page_title="祖產土地潛力評估小站", page_icon="📈", layout="wide")
 
-# 📰 財經新聞雜誌風 + 強制白底 CSS (已修復所有黑底字/隱形字問題)
+# 📰 財經新聞雜誌風 + 強制白底 CSS 
 st.markdown("""
 <style>
 /* 🌟 強制整個網站變成白底/淺灰底，無視手機的深色模式 🌟 */
@@ -15,10 +14,9 @@ st.markdown("""
 /* 強制所有一般文字為深黑色 */
 .stMarkdown p, .stMarkdown span, .stMarkdown li, label, div { color: #222222 !important; }
 
-/* ⬇️ 終極修復：針對左側輸入框與下拉選單強制白底黑字 ⬇️ */
+/* ⬇️ 左側輸入框與下拉選單強制白底黑字 ⬇️ */
 div[data-baseweb="select"] > div { background-color: #FFFFFF !important; color: #222222 !important; border: 1px solid #CCCCCC !important; }
 div[data-baseweb="select"] span { color: #222222 !important; }
-/* 修正下拉選單中「選中的字」 */
 div[data-baseweb="select"] div[class*="singleValue"] { color: #222222 !important; } 
 
 div[data-baseweb="base-input"] > input { background-color: #FFFFFF !important; color: #222222 !important; -webkit-text-fill-color: #222222 !important; }
@@ -31,7 +29,28 @@ li[role="option"]:hover { background-color: #F0F0F0 !important; }
 label[data-baseweb="checkbox"] div { color: #222222 !important; }
 /* 修正側邊欄的標題字 (1. 輸入土地基本資料 等) */
 [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 { color: #CC0000 !important; }
-/* ⬆️ 終極修復結束 ⬆️ */
+
+/* ⬇️ 終極修復：強制所有 Streamlit 原生按鈕變成財訊紅底白字 ⬇️ */
+div.stButton > button {
+    background-color: #CC0000 !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    font-weight: 900 !important;
+    border-radius: 4px !important;
+    padding: 10px 24px !important;
+    box-shadow: 0 4px 6px rgba(204,0,0,0.2) !important;
+    transition: all 0.2s ease !important;
+}
+div.stButton > button:hover {
+    background-color: #B71C1C !important; /* 滑鼠移過去變深紅 */
+    color: #FFFFFF !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(204,0,0,0.3) !important;
+}
+div.stButton > button p {
+    color: #FFFFFF !important; /* 確保按鈕內的字也是白色 */
+    font-size: 18px !important;
+}
 
 /* 財訊經典紅標題 */
 .main-title { 
@@ -51,7 +70,7 @@ label[data-baseweb="checkbox"] div { color: #222222 !important; }
     line-height: 1.6; 
 }
 
-/* 報紙專欄方塊感 (銳利邊角、鮮明紅頂線) */
+/* 報紙專欄方塊感 */
 .card { 
     background-color: #FFFFFF !important; 
     padding: 24px; 
@@ -65,7 +84,7 @@ label[data-baseweb="checkbox"] div { color: #222222 !important; }
 .card p, .card li { color: #222222 !important; font-size: 16px; line-height: 1.8; }
 .card b { color: #000000 !important; }
 
-/* 警示卡片 (鮮明紅底) */
+/* 警示卡片 */
 .alert-card { 
     background-color: #FFF0F0 !important; 
     padding: 24px; 
@@ -76,7 +95,7 @@ label[data-baseweb="checkbox"] div { color: #222222 !important; }
 .alert-card h3 { color: #B71C1C !important; font-size: 22px; font-weight: 900; margin-top:0; }
 .alert-card p, .alert-card b { color: #B71C1C !important; font-size: 16px; line-height: 1.8;}
 
-/* 強烈警告卡片 (黑底紅字，極度吸睛) */
+/* 強烈警告卡片 */
 .danger-card { 
     background-color: #212121 !important; 
     padding: 24px; 
@@ -87,7 +106,7 @@ label[data-baseweb="checkbox"] div { color: #222222 !important; }
 .danger-card h3 { color: #FFCDD2 !important; font-size: 22px; font-weight: 900; margin-top:0; }
 .danger-card p, .danger-card b { color: #FFFFFF !important; font-size: 16px; line-height: 1.8;}
 
-/* 獨家報導解鎖牆 (雜誌訂閱感) */
+/* 獨家報導解鎖牆 */
 .pay-wall { 
     background-color: #FAFAFA !important; 
     padding: 30px; 
@@ -99,7 +118,7 @@ label[data-baseweb="checkbox"] div { color: #222222 !important; }
 .pay-wall h3 { color: #CC0000 !important; font-size: 26px; font-weight: 900; margin-bottom: 10px; background-color: #FFEBEE; display: inline-block; padding: 5px 15px;}
 .pay-wall p { color: #333333 !important; font-size: 16px; font-weight: bold;}
 
-/* 底部專案導流卡 (財訊經典紅底黃字) */
+/* 底部專案導流卡 */
 .cta-card {
     background-color: #CC0000 !important;
     padding: 40px;
@@ -111,7 +130,7 @@ label[data-baseweb="checkbox"] div { color: #222222 !important; }
 .cta-card h3 { color: #FFFFFF !important; margin-top:0; font-size: 26px; font-weight: 900; }
 .cta-card p { color: #FFEBEE !important; font-size: 16px; line-height: 1.8;}
 
-/* 衝動型行動按鈕 (亮眼黃) */
+/* 最底部的專屬 LINE 按鈕 (亮眼黃) */
 .btn-news {
     background-color: #FFEB3B !important;
     color: #CC0000 !important;
