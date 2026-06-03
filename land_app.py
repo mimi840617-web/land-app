@@ -1,55 +1,54 @@
 import streamlit as st
 import time
 import pandas as pd
-import requests # 🚀 網路連線套件
+import requests 
 
 st.set_page_config(page_title="全國土地資產智慧分析平台", page_icon="📈", layout="wide")
 
-# --- 📡 模組 B：全國政府實價登錄 API 即時連線模組 ---
-@st.cache_data(ttl=3600) # 快取 1 小時，避免政府伺服器封鎖我們
+# 🗺️ 建立全台縣市與鄉鎮市區的字典
+TAIWAN_REGIONS = {
+    "台北市": ["士林區", "北投區", "內湖區", "中山區", "大安區", "信義區", "松山區", "中正區", "萬華區", "大同區", "南港區", "文山區"],
+    "新北市": ["板橋區", "三重區", "中和區", "永和區", "新莊區", "新店區", "土城區", "蘆洲區", "樹林區", "汐止區", "三峽區", "淡水區", "鶯歌區", "五股區", "泰山區", "林口區", "八里區", "深坑區", "石碇區", "坪林區", "三芝區", "石門區", "金山區", "萬里區", "平溪區", "雙溪區", "貢寮區", "瑞芳區", "烏來區"],
+    "桃園市": ["桃園區", "中壢區", "平鎮區", "八德區", "楊梅區", "蘆竹區", "大溪區", "龍潭區", "龜山區", "大園區", "觀音區", "新屋區", "復興區"],
+    "台中市": ["西屯區", "南屯區", "北屯區", "中區", "東區", "南區", "西區", "北區", "豐原區", "大里區", "太平區", "清水區", "沙鹿區", "大甲區", "東勢區", "梧棲區", "烏日區", "神岡區", "大肚區", "大雅區", "后里區", "霧峰區", "潭子區", "龍井區", "和平區", "石岡區", "大安區", "外埔區"],
+    "台南市": ["安平區", "安南區", "東區", "南區", "北區", "中西區", "新營區", "永康區", "佳里區", "善化區", "新化區", "歸仁區", "仁德區"], # 僅列舉部分示範
+    "高雄市": ["苓雅區", "新興區", "前金區", "三民區", "鹽埕區", "鼓山區", "旗津區", "前鎮區", "楠梓區", "左營區", "鳳山區", "大寮區", "岡山區", "路竹區"] # 僅列舉部分示範
+}
+
+@st.cache_data(ttl=3600) 
 def fetch_national_land_data(city, district, section):
     """
     自動根據縣市代碼打 API 去內政部抓最新資料，並啟動智慧備援機制。
     """
-    # 1. 破解政府的縣市密碼表
     city_code_map = {
-        "台北市": "A", "新北市": "F", "桃園市": "H", "台中市": "B", "台南市": "D", "高雄市": "E",
-        "基隆市": "C", "新竹市": "O", "嘉義市": "I", "新竹縣": "J", "苗栗縣": "K", "彰化縣": "N",
-        "南投縣": "M", "雲林縣": "P", "嘉義縣": "Q", "屏東縣": "T", "宜蘭縣": "G", "花蓮縣": "U",
-        "台東縣": "V", "澎湖縣": "X", "金門縣": "W", "連江縣": "Z"
+        "台北市": "A", "新北市": "F", "桃園市": "H", "台中市": "B", "台南市": "D", "高雄市": "E"
     }
     
     city_code = city_code_map.get(city)
     if not city_code:
         return {"status": "error", "message": "尚未支援此縣市的自動查詢。"}
 
-    # 2. 組裝內政部 API 網址 (JSON 格式)
     api_url = f"https://plvr.land.moi.gov.tw/DownloadOpenData/JSON/{city_code}_lvr_land_A.json"
     
     try:
-        # 3. 派出機器人去抓資料 (偽裝成正常瀏覽器避免被擋)
         headers = {'User-Agent': 'Mozilla/5.0'}
         response = requests.get(api_url, headers=headers, timeout=10)
-        response.raise_for_status() # 檢查連線是否成功
+        response.raise_for_status()
         
-        # 4. 把資料倒進 Pandas 濾水器
         data = response.json()
         df = pd.DataFrame(data)
         
-        # 排除政府第一行的英文標題
         df = df[df['鄉鎮市區'] != 'The villages and towns urban district'] 
         
-        # 5. 開始精準過濾
         df = df[df['交易標的'] == '土地']
         df = df[df['鄉鎮市區'] == district]
         if section:
-            search_keyword = section[:3] # 取前三個字模糊比對
+            search_keyword = section[:3]
             df = df[df['土地區段位置建物區段門牌'].str.contains(search_keyword, na=False)]
             
         if df.empty:
-            raise ValueError("查無近期純土地交易") # 觸發備援機制
+            raise ValueError("查無近期純土地交易")
             
-        # 6. 計算真實行情
         df['總價元'] = pd.to_numeric(df['總價元'], errors='coerce')
         df['坪數'] = pd.to_numeric(df['土地移轉總面積平方公尺'], errors='coerce') * 0.3025
         df['每坪單價'] = df['總價元'] / df['坪數']
@@ -68,8 +67,6 @@ def fetch_national_land_data(city, district, section):
         }
         
     except Exception as e:
-        # 🚧 商業級防護：優雅降級 (Graceful Degradation) 🚧
-        # 如果政府 API 掛掉、或是該地段太偏僻沒資料，自動切換為「大數據估算模型」
         base_price = 25.76 if city == "台北市" else (18.5 if city == "新北市" else (15.2 if city == "桃園市" else 10.5))
         return {
             "status": "success",
@@ -79,9 +76,7 @@ def fetch_national_land_data(city, district, section):
                 "trade_count": "AI 市場行情估算模型 (API 備援模式)"
             }
         }
-# ----------------------------------------
 
-# 📰 財經新聞雜誌風 + 強制白底 CSS 
 st.markdown("""
 <style>
 [data-testid="stAppViewContainer"] { background-color: #F8F9FA !important; }
@@ -127,10 +122,14 @@ div.stButton > button p { color: #FFFFFF !important; font-size: 18px !important;
 st.markdown('<p class="main-title">📈【獨家分析】全國持分土地變現測算</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-title">輸入地號，系統將結合內政部大數據與法規盲區，為您產出最具權威性的「資產變現與防禦報告」！</p>', unsafe_allow_html=True)
 
-# 側邊欄輸入設定 (開放全國與主要區域供測試)
 st.sidebar.header("📍 1. 輸入土地基本資料")
-city = st.sidebar.selectbox("縣市", ["台北市", "新北市", "桃園市", "台中市", "台南市", "高雄市", "其他"])
-district = st.sidebar.selectbox("鄉鎮市區", ["士林區", "板橋區", "桃園區", "西屯區", "其他"])
+
+# 🚀 動態連動選單核心邏輯
+city = st.sidebar.selectbox("縣市", list(TAIWAN_REGIONS.keys()))
+
+# 根據上面選的 city，動態抓出對應的區放進第二個選單
+district = st.sidebar.selectbox("鄉鎮市區", TAIWAN_REGIONS[city])
+
 section = st.sidebar.text_input("地段 (選填：如 富安段)", value="富安段")
 land_num = st.sidebar.text_input("地號", value="261")
 
@@ -147,7 +146,6 @@ if st.sidebar.button("🔍 立即測算本案價值", type="primary"):
 
 if st.session_state.get('analyzed', False):
     with st.spinner(f"🌍 系統正呼叫內政部 {city} 實價登錄 API..."):
-        # 🚀 正式啟動 API 抓取與備援模組
         analysis_result = fetch_national_land_data(city, district, section)
         
     if analysis_result["status"] == "error":
@@ -164,7 +162,6 @@ if st.session_state.get('analyzed', False):
         c3.metric("本案移轉面積", "21.78 坪")
         c4.metric("權利範圍 (持分)", "1/18")
         
-        # 根據 API 抓回來 (或備援算出來) 的單價，乘以坪數算總價
         my_total_price = round(21.78 * data['avg_price_per_ping'], 0) 
         
         st.markdown(f"""
@@ -181,7 +178,6 @@ if st.session_state.get('analyzed', False):
         
         st.markdown("---")
         
-        # --- 下方付費解鎖牆維持不變 ---
         if pay_mode and not st.session_state['paid']:
             st.markdown(f"""
             <div style="padding: 10px 0;">
