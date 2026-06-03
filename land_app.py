@@ -4,7 +4,7 @@ import time
 # 設定網頁分頁標籤與圖示 
 st.set_page_config(page_title="全國土地資產智慧分析平台", page_icon="📈", layout="wide")
 
-# 📰 財經新聞雜誌風 + 強制白底 CSS
+# 📰 財經新聞雜誌風 + 強制白底 CSS (已修復輸入框黑底問題)
 st.markdown("""
 <style>
 /* 🌟 強制整個網站變成白底/淺灰底，無視手機的深色模式 🌟 */
@@ -12,8 +12,18 @@ st.markdown("""
 [data-testid="stHeader"] { background-color: #F8F9FA !important; }
 [data-testid="stSidebar"] { background-color: #FFFFFF !important; }
 
-/* 強制全域文字為深黑色，避免深色模式下字體變形 */
-.stMarkdown p, .stMarkdown span, .stMarkdown li, label, div { color: #222222 !important; }
+/* 強制文字為深黑色 */
+.stMarkdown p, .stMarkdown span, .stMarkdown li, label { color: #222222 !important; }
+
+/* ⬇️ 針對左側輸入框與下拉選單強制白底黑字 ⬇️ */
+div[data-baseweb="select"] > div { background-color: #FFFFFF !important; color: #222222 !important; border: 1px solid #CCCCCC !important; }
+div[data-baseweb="select"] span { color: #222222 !important; }
+div[data-baseweb="base-input"] > input { background-color: #FFFFFF !important; color: #222222 !important; -webkit-text-fill-color: #222222 !important; }
+div[data-baseweb="popover"] { background-color: #FFFFFF !important; }
+ul[data-baseweb="menu"] { background-color: #FFFFFF !important; }
+li[role="option"] { color: #222222 !important; background-color: #FFFFFF !important; }
+li[role="option"]:hover { background-color: #F0F0F0 !important; }
+/* ⬆️ 針對左側輸入框強制白底黑字結束 ⬆️ */
 
 /* 財訊經典紅標題 */
 .main-title { 
