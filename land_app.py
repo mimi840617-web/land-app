@@ -1,45 +1,34 @@
 import streamlit as st
 import time
 import pandas as pd
-import requests 
+import requests
 
 st.set_page_config(page_title="全國土地資產智慧分析平台", page_icon="📈", layout="wide")
 
-# 🗺️ 建立全台縣市與鄉鎮市區的字典
 TAIWAN_REGIONS = {
     "台北市": ["士林區", "北投區", "內湖區", "中山區", "大安區", "信義區", "松山區", "中正區", "萬華區", "大同區", "南港區", "文山區"],
     "新北市": ["板橋區", "三重區", "中和區", "永和區", "新莊區", "新店區", "土城區", "蘆洲區", "樹林區", "汐止區", "三峽區", "淡水區", "鶯歌區", "五股區", "泰山區", "林口區", "八里區", "深坑區", "石碇區", "坪林區", "三芝區", "石門區", "金山區", "萬里區", "平溪區", "雙溪區", "貢寮區", "瑞芳區", "烏來區"],
     "桃園市": ["桃園區", "中壢區", "平鎮區", "八德區", "楊梅區", "蘆竹區", "大溪區", "龍潭區", "龜山區", "大園區", "觀音區", "新屋區", "復興區"],
     "台中市": ["西屯區", "南屯區", "北屯區", "中區", "東區", "南區", "西區", "北區", "豐原區", "大里區", "太平區", "清水區", "沙鹿區", "大甲區", "東勢區", "梧棲區", "烏日區", "神岡區", "大肚區", "大雅區", "后里區", "霧峰區", "潭子區", "龍井區", "和平區", "石岡區", "大安區", "外埔區"],
-    "台南市": ["安平區", "安南區", "東區", "南區", "北區", "中西區", "新營區", "永康區", "佳里區", "善化區", "新化區", "歸仁區", "仁德區"], # 僅列舉部分示範
-    "高雄市": ["苓雅區", "新興區", "前金區", "三民區", "鹽埕區", "鼓山區", "旗津區", "前鎮區", "楠梓區", "左營區", "鳳山區", "大寮區", "岡山區", "路竹區"] # 僅列舉部分示範
+    "台南市": ["安平區", "安南區", "東區", "南區", "北區", "中西區", "新營區", "永康區", "佳里區", "善化區", "新化區", "歸仁區", "仁德區"], 
+    "高雄市": ["苓雅區", "新興區", "前金區", "三民區", "鹽埕區", "鼓山區", "旗津區", "前鎮區", "楠梓區", "左營區", "鳳山區", "大寮區", "岡山區", "路竹區"] 
 }
 
 @st.cache_data(ttl=3600) 
 def fetch_national_land_data(city, district, section):
-    """
-    自動根據縣市代碼打 API 去內政部抓最新資料，並啟動智慧備援機制。
-    """
-    city_code_map = {
-        "台北市": "A", "新北市": "F", "桃園市": "H", "台中市": "B", "台南市": "D", "高雄市": "E"
-    }
-    
+    city_code_map = {"台北市": "A", "新北市": "F", "桃園市": "H", "台中市": "B", "台南市": "D", "高雄市": "E"}
     city_code = city_code_map.get(city)
     if not city_code:
         return {"status": "error", "message": "尚未支援此縣市的自動查詢。"}
 
     api_url = f"https://plvr.land.moi.gov.tw/DownloadOpenData/JSON/{city_code}_lvr_land_A.json"
-    
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
         response = requests.get(api_url, headers=headers, timeout=10)
         response.raise_for_status()
-        
         data = response.json()
         df = pd.DataFrame(data)
-        
         df = df[df['鄉鎮市區'] != 'The villages and towns urban district'] 
-        
         df = df[df['交易標的'] == '土地']
         df = df[df['鄉鎮市區'] == district]
         if section:
@@ -65,7 +54,6 @@ def fetch_national_land_data(city, district, section):
                 "trade_count": f"{len(df)} 筆 (政府API即時連線)"
             }
         }
-        
     except Exception as e:
         base_price = 25.76 if city == "台北市" else (18.5 if city == "新北市" else (15.2 if city == "桃園市" else 10.5))
         return {
@@ -123,19 +111,21 @@ st.markdown('<p class="main-title">📈【獨家分析】全國持分土地變�
 st.markdown('<p class="sub-title">輸入地號，系統將結合內政部大數據與法規盲區，為您產出最具權威性的「資產變現與防禦報告」！</p>', unsafe_allow_html=True)
 
 st.sidebar.header("📍 1. 輸入土地基本資料")
-
-# 🚀 動態連動選單核心邏輯
 city = st.sidebar.selectbox("縣市", list(TAIWAN_REGIONS.keys()))
-
-# 根據上面選的 city，動態抓出對應的區放進第二個選單
 district = st.sidebar.selectbox("鄉鎮市區", TAIWAN_REGIONS[city])
-
-section = st.sidebar.text_input("地段 (選填：如 富安段)", value="富安段")
+section = st.sidebar.text_input("地段 (如 富安段)", value="富安段")
 land_num = st.sidebar.text_input("地號", value="261")
 
+# 🚀 新增：讓使用者輸入關鍵屬性，啟動動態邏輯
 st.sidebar.markdown("---")
-st.sidebar.header("⚙️ 2. 微型服務商業模式")
-pay_mode = st.sidebar.checkbox("開啟「付費 150 元解鎖完整報告」功能", value=True)
+st.sidebar.header("📋 2. 產權現況補充 (選填)")
+zoning = st.sidebar.selectbox("謄本標示之使用分區", ["一般住宅/商業區", "農業區/農牧用地", "公共設施保留地 (如道路)", "計畫區 / 區段徵收區", "不確定"])
+holding_numerator = st.sidebar.number_input("您的持分 (分子)", min_value=1, value=1)
+holding_denominator = st.sidebar.number_input("您的持分 (分母)", min_value=1, value=18)
+
+st.sidebar.markdown("---")
+st.sidebar.header("⚙️ 3. 微型服務商業模式")
+pay_mode = st.sidebar.checkbox("開啟「付費解鎖報告」功能", value=True)
 
 if 'paid' not in st.session_state:
     st.session_state['paid'] = False
@@ -152,26 +142,35 @@ if st.session_state.get('analyzed', False):
         st.error(analysis_result["message"])
     else:
         data = analysis_result["data"]
+        
+        # 動態計算：判斷是否為區段徵收熱點
+        is_expropriation = False
+        if "區段徵收" in zoning or "富安" in section or "塭仔圳" in section or "航空城" in section:
+            is_expropriation = True
+            
+        # 動態持分計算
+        holding_ratio = holding_numerator / holding_denominator
+        holding_warning = ""
+        if holding_ratio < 0.5:
+            holding_warning = "持分未過半，無法單獨進行常規開發，極易遭市場買方壓價。"
+            
         st.success(f"🎉 數據解析完成！資料來源：{data['trade_count']}")
         
         st.subheader("📋 標的現況與市場實價行情（免費公開）")
-        
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("標的坐落", f"{city}{district}{section}")
         c2.metric("地號", f"{land_num} 地號")
-        c3.metric("本案移轉面積", "21.78 坪")
-        c4.metric("權利範圍 (持分)", "1/18")
-        
-        my_total_price = round(21.78 * data['avg_price_per_ping'], 0) 
+        c3.metric("本案移轉面積", "依權狀為準")
+        c4.metric("權利範圍 (持分)", f"{holding_numerator}/{holding_denominator}")
         
         st.markdown(f"""
         <div class="card">
             <h4 style="color: #000000 !important; font-weight: 900;">📊 周邊實價登錄大數據分析</h4>
             <p>經系統連線比對本案周邊同性質之土地交易紀錄，評估結果如下：</p>
             <ul>
-                <li><b>本案參考成交總價：</b> <span style="color:#CC0000 !important; font-size:22px; font-weight:900;">{my_total_price} 萬元</span></li>
-                <li><b>本案折算每坪單價：</b> <span style="color:#CC0000 !important; font-size:22px; font-weight:900;">{data['avg_price_per_ping']} 萬元 / 坪</span></li>
+                <li><b>區域折算每坪單價：</b> <span style="color:#CC0000 !important; font-size:22px; font-weight:900;">約 {data['avg_price_per_ping']} 萬元 / 坪</span></li>
                 <li><b>該區段市場整體區間：</b> 每坪約 {data['price_range']} 萬元，符合目前市場盤整行情。</li>
+                {"<li style='color:#E74C3C;'><b>⚠️ 重大開發區警示：</b> 本區疑似屬於「區段徵收/重劃區」，上述市價為『權利買賣』之權利金估值，非一般建地價格！</li>" if is_expropriation else ""}
             </ul>
         </div>
         """, unsafe_allow_html=True)
@@ -181,15 +180,8 @@ if st.session_state.get('analyzed', False):
         if pay_mode and not st.session_state['paid']:
             st.markdown(f"""
             <div style="padding: 10px 0;">
-            <h3 style="color: #CC0000 !important; font-weight: 900; font-size: 24px;">⛔ 警告：您的資產價值達 {my_total_price} 萬，但隱藏 3 大產權地雷！</h3>
-            <p style="color: #111111 !important; font-size: 16px; font-weight: bold;">多數持分地主因缺乏地政與法規常識，錯失變現良機或陷入家族官司。支付 <b>NT$ 150 元</b> 立即解鎖專屬【變現與防禦深度報告】：</p>
-            <ul style="color: #333333 !important; font-size: 16px; line-height: 1.8;">
-                <li><b>1. 法規障礙：</b> 名為「商業區」，為何現況連一間廁所都不能蓋？</li>
-                <li><b>2. 隱藏地雷：</b> 本案未來會被政府強迫劃為「馬路」嗎？</li>
-                <li><b>3. 邊緣人破局：</b> 持分僅 1/18，親戚不配合，如何單獨強勢變現？</li>
-                <li><b>4. 賣地防身術：</b> 賣地未依法通知優先購買權人，小心面臨天價索賠！</li>
-                <li><b>5. 破解情緒勒索：</b> 親戚拒絕收錢？教您使用「法院提存」合法入袋。</li>
-            </ul>
+            <h3 style="color: #CC0000 !important; font-weight: 900; font-size: 24px;">⛔ 警告：產權現況隱藏重大處分風險！</h3>
+            <p style="color: #111111 !important; font-size: 16px; font-weight: bold;">{holding_warning} 多數地主因缺乏法規常識，錯失變現良機或陷入家族官司。支付 <b>NT$ 150 元</b> 立即解鎖專屬【變現與防禦深度報告】：</p>
             </div>
             """, unsafe_allow_html=True)
             
@@ -197,7 +189,6 @@ if st.session_state.get('analyzed', False):
             <div class="pay-wall">
                 <h3>🔓 立即解鎖【獨家持分變現報告】</h3>
                 <p style="color: #CC0000 !important; font-size: 28px; font-weight: 900; margin: 10px 0;">限時查閱價：NT$ 150</p>
-                <p style="color: #555555 !important; font-size: 14px;">(解鎖後即享完整專家解析，並開通免費顧問諮詢權限)</p>
             </div>
             """, unsafe_allow_html=True)
             
@@ -212,43 +203,78 @@ if st.session_state.get('analyzed', False):
             
             st.subheader("🕵️‍♂️ 專家獨家揭密：持分地變現與防禦策略（已解鎖）")
             
+            # 🚀 動態報告引擎：根據使用者的輸入，拼裝不同的報告卡片
+            
+            # 區塊 1：使用分區專屬警告
+            if is_expropriation:
+                st.markdown("""
+                <div class="danger-card">
+                <h3>🚨 1. 區段徵收的「權利期貨」陷阱</h3>
+                <p><b>【專家深度解析】</b><br>
+                您的土地位處區段徵收範圍！實價登錄的價格<b>不是現況土地的價格</b>，而是買方預期未來能跟政府換回「抵價地（建地）」的權利金。<br>
+                <b>風險揭露：</b> 開發案通常需歷時 10~15 年以上的行政程序，期間土地完全凍結、無法收益。若您資金無法長年鎖死，強烈建議在「計畫發布前期」溢價盤整時，由專業團隊尋求建商盤件變現。</p>
+                </div>
+                """, unsafe_allow_html=True)
+            elif "道路" in zoning:
+                st.markdown("""
+                <div class="danger-card">
+                <h3>🚨 1. 道路用地：絕對禁建與容積移轉</h3>
+                <p><b>【專家深度解析】</b><br>
+                您的土地被劃設為「公共設施保留地（道路）」。法律上<b>絕對禁止任何私人建築</b>，留在手上等於死資產。<br>
+                <b>變現唯一解法：</b> 等待政府微乎其微的徵收預算，或是透過專業土開公司，啟動『容積移轉』程序，將此土地的容積權利以市價折數賣給需要蓋高樓的建商。</p>
+                </div>
+                """, unsafe_allow_html=True)
+            elif "農業" in zoning:
+                st.markdown("""
+                <div class="alert-card">
+                <h3>⚠️ 1. 農業區：農發條例的緊箍咒</h3>
+                <p><b>【專家深度解析】</b><br>
+                此為農業用地，若要興建農舍，不僅面積須達 0.25 公頃（約 75.6 坪），且須具備農民資格，門檻極高。若現況未作農業使用，買賣過戶時更可能面臨高額的「土地增值稅」。</p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div class="card">
+                <h3>📌 1. 一般建地的隱形限制</h3>
+                <p><b>【專家深度解析】</b><br>
+                雖然屬於住宅或商業區，但在實際買賣前，仍須確認「建築線」是否指定完成、是否有「法定空地」重疊問題。素地買賣並非只看單價，地形面寬與容積率才是建商出價的真正核心。</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+            # 區塊 2：持分專屬警告
+            if holding_ratio < 0.5:
+                st.markdown("""
+                <div class="card">
+                <h3>👥 2. 產權破局：甩開少數反對者 (土地法34-1)</h3>
+                <p><b>【專家深度解析】</b><br>
+                您的持分未過半，一般市場買家極度排斥、銀行也拒絕貸款。但實務上可利用<b>《土地法》第 34 條之一</b>：只要同意出售的共有人人數與持分「雙過半」，即可<b>合法將整塊土地強制處分</b>。由專業法務介入，您無須再受親戚牽制。</p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div class="card">
+                <h3>👥 2. 大持分優勢：主導開發談判</h3>
+                <p><b>【專家深度解析】</b><br>
+                您掌握了過半的持分優勢！在實務上，您可以作為發起人，利用土地法 34-1 條強制整合全案，直接與大型建商談判合建或高價出售，獲取最大的談判籌碼。</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # 區塊 3：共通的防禦戰術 (優先購買權與提存)
             st.markdown("""
-            <div class="card">
-            <h3>📌 1. 商業區的糖衣陷阱</h3>
-            <p><b>【專家深度解析】</b><br>
-            您的地段未來確實是高價值的「商業/住宅區」。但在政府將具體細節（如道路、管線）定案前，這塊地<b>完全被法令凍結，現況禁止任何開發</b>。這猶如一張「素地期貨」，此時出售即是將未來的增值潛力提前套現，規避漫長等待的風險。</p>
-            </div>
-            
             <div class="alert-card">
-            <h3>⚠️ 2. 道路用地徵收風險</h3>
+            <h3>🚨 3. 優先購買權：勿踩損害賠償地雷</h3>
             <p><b>【專家深度解析】</b><br>
-            系統偵測到此地段有部分範圍，未來極可能被劃為<b>「道路用地（公共設施）」</b>。一旦成為道路，將喪失建築價值。在市場買賣談判時，這往往是買方大幅砍價的致命點，必須依靠專業團隊進行估價防禦。</p>
+            若未依法發出存證信函通知「優先購買權人」（如地上權人或承租人），地政機關將退件不予過戶，賣方更可能面臨天價官司索賠！程序必須滴水不漏。</p>
             </div>
             
             <div class="card">
-            <h3>👥 3. 產權破局：甩開少數反對者</h3>
+            <h3>🏦 4. 法院提存：破解親戚拒收價金</h3>
             <p><b>【專家深度解析】</b><br>
-            持分極度零碎，一般市場買家拒絕承接。但實務上可利用<b>《土地法》第 34 條之一</b>：只要同意出售的共有人人數與持分「雙過半」，即可<b>合法將整塊土地強制處分</b>。您無須再受少數不配合的親戚牽制，掌握主動變現權。</p>
-            </div>
-
-            <div class="danger-card">
-            <h3>🚨 4. 優先購買權：勿踩損害賠償地雷</h3>
-            <p><b>【專家深度解析】</b><br>
-            法律明訂極度嚴格的<b>「優先購買權」</b>。若地上有他人建物，出賣的法定優先順序為：<b>地上權人 ＞ 典權人 ＞ 租地建屋承租人 ＞ 其他共有人</b>。<br>
-            若未依法發出存證信函通知正確的順位人，地政機關將退件不予過戶，賣方更可能面臨官司索賠！程序必須滴水不漏。</p>
-            </div>
-
-            <div class="card">
-            <h3>🏦 5. 法院提存：破解親戚拒收價金</h3>
-            <p><b>【專家深度解析】</b><br>
-            若成功售出土地，但反對的親戚故意拒接電話、拒絕提供銀行帳號，企圖阻撓過戶怎麼辦？<br>
-            實務上，我們可將該親戚應得之價金，依法<b>「提存至法院」</b>。一旦款項進入法院提存所，法律上視同對方已收受。您即可合法、安全地完成過戶，將屬於您的現金安穩落袋！</p>
+            若反對的親戚故意拒接電話、拒絕提供銀行帳號阻撓過戶，我們可將其價金依法<b>「提存至法院」</b>，視同對方已收受。您即可合法完成過戶，現金安穩落袋！</p>
             </div>
 
             <div class="cta-card">
-            <h3>啟動您的資產變現計畫</h3>
-            <p>零碎、帶有糾紛的持分祖產，只會隨著繼承世代越切越碎，最終淪為死資產。<br>
-            如果您想得知本案 <span style="color:#FFEB3B; font-weight:bold;">當前的直接收購價</span>，或是委託專業團隊為您啟動 <span style="color:#FFEB3B; font-weight:bold;">土地法34-1 與 法院提存程序</span>...</p>
+            <h3>啟動您的專屬資產變現計畫</h3>
             <a href="https://line.me" target="_blank" class="btn-news">專人一對一免費鑑價與諮詢 ➔</a>
             <p style="font-size: 13px; margin-top: 15px; color:#FFCDD2 !important;">(本平台由資深土地開發法務團隊營運・全程保密)</p>
             </div>
